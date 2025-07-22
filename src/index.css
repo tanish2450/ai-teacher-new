@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Educational theme - warm and inspiring */
+    --background: 220 100% 99%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* Primary: Deep educational blue */
+    --primary: 212 95% 45%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Learning gradients */
+    --primary-glow: 210 100% 65%;
+    --primary-soft: 212 85% 85%;
+
+    --secondary: 215 100% 97%;
+    --secondary-foreground: 215 25% 25%;
+
+    --muted: 215 50% 96%;
+    --muted-foreground: 215 15% 45%;
+
+    --accent: 197 100% 92%;
+    --accent-foreground: 197 85% 25%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 30% 88%;
+    --input: 215 30% 88%;
+    --ring: 212 95% 45%;
+    
+    /* Educational specific colors */
+    --learning-blue: 212 95% 45%;
+    --learning-light: 210 100% 65%;
+    --wisdom-purple: 245 75% 60%;
+    --focus-amber: 45 100% 65%;
+    
+    /* Gradients for beautiful effects */
+    --gradient-learning: linear-gradient(135deg, hsl(212 95% 45%), hsl(210 100% 65%));
+    --gradient-wisdom: linear-gradient(135deg, hsl(212 95% 45%), hsl(245 75% 60%));
+    --gradient-focus: linear-gradient(135deg, hsl(210 100% 65%), hsl(45 100% 65%));
+    
+    /* Shadows with learning theme */
+    --shadow-learning: 0 10px 40px -10px hsl(212 95% 45% / 0.3);
+    --shadow-soft: 0 4px 20px -4px hsl(212 95% 45% / 0.1);
+    --shadow-glow: 0 0 30px hsl(210 100% 65% / 0.4);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark educational theme */
+    --background: 215 30% 8%;
+    --foreground: 215 20% 90%;
+
+    --card: 215 25% 10%;
+    --card-foreground: 215 20% 90%;
+
+    --popover: 215 25% 10%;
+    --popover-foreground: 215 20% 90%;
+
+    --primary: 210 100% 65%;
+    --primary-foreground: 215 30% 8%;
+    
+    --primary-glow: 212 95% 75%;
+    --primary-soft: 212 85% 20%;
+
+    --secondary: 215 25% 15%;
+    --secondary-foreground: 215 20% 80%;
+
+    --muted: 215 25% 12%;
+    --muted-foreground: 215 15% 55%;
+
+    --accent: 215 25% 15%;
+    --accent-foreground: 197 85% 75%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 25% 18%;
+    --input: 215 25% 18%;
+    --ring: 210 100% 65%;
+    
+    /* Dark mode educational colors */
+    --learning-blue: 210 100% 65%;
+    --learning-light: 212 95% 75%;
+    --wisdom-purple: 245 75% 70%;
+    --focus-amber: 45 100% 70%;
+    
+    /* Dark gradients */
+    --gradient-learning: linear-gradient(135deg, hsl(210 100% 65%), hsl(212 95% 75%));
+    --gradient-wisdom: linear-gradient(135deg, hsl(210 100% 65%), hsl(245 75% 70%));
+    --gradient-focus: linear-gradient(135deg, hsl(212 95% 75%), hsl(45 100% 70%));
+    
+    /* Dark shadows */
+    --shadow-learning: 0 10px 40px -10px hsl(210 100% 65% / 0.4);
+    --shadow-soft: 0 4px 20px -4px hsl(210 100% 65% / 0.2);
+    --shadow-glow: 0 0 30px hsl(212 95% 75% / 0.3);
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* React PDF Styles - manually added to avoid import issues */
+.react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.react-pdf__Page {
+  max-width: calc(100% - 2em);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin: 1em;
+}
+
+.react-pdf__Page__textContent {
+  border: 1px solid transparent;
+}
+
+.react-pdf__Page__textContent .textLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 0.2;
+  line-height: 1.0;
+}
+
+.react-pdf__Page__textContent .textLayer > span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.react-pdf__Page__textContent .textLayer .highlight {
+  margin: -1px;
+  padding: 1px;
+  background-color: rgba(180, 0, 170, 0.2);
+  border-radius: 4px;
+}
+
+.react-pdf__Page__textContent .textLayer .highlight.begin {
+  border-radius: 4px 0px 0px 4px;
+}
+
+.react-pdf__Page__textContent .textLayer .highlight.end {
+  border-radius: 0px 4px 4px 0px;
+}
+
+.react-pdf__Page__textContent .textLayer .highlight.middle {
+  border-radius: 0px;
+}
+
+.react-pdf__Page__textContent .textLayer .highlight.selected {
+  background-color: rgba(0, 100, 0, 0.2);
+}
+
+.react-pdf__Page__annotations {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+.react-pdf__Page__annotations .annotationLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}

@@ -1,5 +1,19 @@
 # Welcome to your Lovable project
 
+## Screenshot Analysis Feature
+
+This project now includes a screenshot analysis feature that allows users to:
+
+1. Click the "Take Screenshot" button
+2. Use Windows Snipping Tool (Win+Shift+S) to capture a region of their screen
+3. Click "Paste Screenshot" or press Ctrl+V to paste the captured screenshot
+4. Draw a selection box around the specific area they want to analyze
+5. Send the selected area to the AI model for analysis
+
+The feature provides clear instructions and feedback throughout the process, making it easy to analyze visual content from anywhere on the screen.
+
+This feature is perfect for analyzing visual content, diagrams, charts, or any information that isn't easily selectable as text.
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/ce747397-3659-4023-90a2-54fc2f98e7b4

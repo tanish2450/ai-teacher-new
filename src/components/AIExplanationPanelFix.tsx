@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { truncateDocumentContent } from '@/utils/documentUtils';
 import { Volume2, VolumeX, MessageSquare, Minimize2, Maximize2, Send, Scissors } from 'lucide-react';
+import { VoiceSelector } from '@/components/VoiceSelector';
 import { ScreenshotCapture } from '@/components/ScreenshotCapture';
-import { GeminiRequest, GeminiResponse } from '@/types/gemini';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { truncateDocumentContent } from '@/utils/documentUtils';
+import { renderMarkdown } from '@/utils/markdownUtils';
+import { speakWithAI, stopSpeech } from '@/services/speechService';
+import '@/styles/markdown.css';
 
 interface Message {
   id: string;
@@ -38,6 +41,17 @@ export const AIExplanationPanel = ({
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showScreenshotTool, setShowScreenshotTool] = useState(false);
+  const [processedDocContent, setProcessedDocContent] = useState<string | undefined>(undefined);
+  const [selectedVoice, setSelectedVoice] = useState('21m00Tcm4TlvDq8ikWAM'); // Default voice (Rachel)
+  
+  // Process document content once when it's available
+  useEffect(() => {
+    if (documentContent && !processedDocContent) {
+      const processed = truncateDocumentContent(documentContent);
+      setProcessedDocContent(processed);
+      console.log("Document content processed and stored for AI context");
+    }
+  }, [documentContent, processedDocContent]);
 
   // Add welcome message when panel first opens
   useEffect(() => {
@@ -61,77 +75,83 @@ export const AIExplanationPanel = ({
   // Send document content to AI when first loaded
   useEffect(() => {
     if (messages.length === 1) { // Only the welcome message exists
-      console.log("AIExplanationPanel received document content:", documentContent ? `length: ${documentContent.length}` : "none");
-      console.log("AIExplanationPanel received description:", documentDescription);
-      
-      // If we already have a description, use it
-      if (documentDescription) {
-        // Add an AI message with the description
-        const descriptionMessage: Message = {
-          id: Date.now().toString(),
-          type: 'ai',
-          content: `I've analyzed your document. Here's what it's about:\n\n${documentDescription}\n\nYou can ask me any questions about the content.`,
-          timestamp: new Date()
-        };
-        
-        setMessages(prev => [...prev, descriptionMessage]);
-      } else if (documentContent) {
-        // If no description but we have content, get a description
-        setIsLoading(true);
-        
-        // Request a description directly
-        const descriptionPrompt = "Please provide a very short description (2-3 sentences) of what this document is about: \n\n" + processedContent;
-        
-        fetchGeminiResponse(descriptionPrompt).then(description => {
+      try {
+        // If we already have a description, use it
+        if (documentDescription) {
+          // Add an AI message with the description
           const descriptionMessage: Message = {
             id: Date.now().toString(),
             type: 'ai',
-            content: `I've analyzed your document. Here's what it's about:\n\n${description}\n\nYou can ask me any questions about the content.`,
+            content: `I've analyzed your document. Here's what it's about:\n\n${documentDescription}\n\n**Ask me any questions** about the content.`,
             timestamp: new Date()
           };
           
           setMessages(prev => [...prev, descriptionMessage]);
-        }).catch(error => {
-          console.error('Error getting document description:', error);
-        });
-      }
-      
-      // Send the document content to the AI if available
-      if (documentContent) {
-        // Truncate document content if it's too large
-        const processedContent = truncateDocumentContent(documentContent);
-        const initialPrompt = "I've uploaded a document. Please read through it carefully so you can help me understand it and answer questions about it. The document content is as follows: \n\n" + processedContent;
-        
-        const userMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'user',
-          content: initialPrompt,
-          timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, userMessage]);
-        setIsLoading(true);
-
-        // Gemini API call to process the document
-        fetchGeminiResponse(initialPrompt).then(aiText => {
-          const aiResponse: Message = {
-            id: (Date.now() + 2).toString(),
-            type: 'ai',
-            content: "I've read and understood the document. I'm ready to answer your questions.",
-            timestamp: new Date()
-          };
-
-          setMessages(prev => [...prev, aiResponse]);
-          setIsLoading(false);
-        }).catch(error => {
-          console.error('Error processing document:', error);
-          setIsLoading(false);
-        });
+        } else if (documentContent) {
+          // If no description but we have content, get a description
+          setIsLoading(true);
+          
+          // Process content safely and store for reuse
+          const processedContent = truncateDocumentContent(documentContent);
+          setProcessedDocContent(processedContent);
+          
+          // Request a description directly
+          const descriptionPrompt = "Please provide a very short description (2-3 sentences) of what this document is about: \n\n" + processedContent;
+          
+          // Fetch request with document context
+          fetch("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-pro:generateContent?key=" + import.meta.env.VITE_GEMINI_API_KEY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "model",
+                  parts: [{ text: "You are an intelligent document analyzer. Read the document carefully and provide a concise 2-3 sentence summary of what it's about. Format important terms using **bold text**." }]
+                },
+                {
+                  role: "user",
+                  parts: [{ text: descriptionPrompt }]
+                }
+              ]
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            const description = data?.candidates?.[0]?.content?.parts?.[0]?.text || "This is a document that contains information you can ask me about.";
+            
+            const descriptionMessage: Message = {
+              id: Date.now().toString(),
+              type: 'ai',
+              content: `I've analyzed your document. Here's what it's about:\n\n${description}\n\n**Ask me any questions** about the content.`,
+              timestamp: new Date()
+            };
+            
+            setMessages(prev => [...prev, descriptionMessage]);
+            setIsLoading(false);
+          })
+          .catch(error => {
+            console.error('Error getting document description:', error);
+            setIsLoading(false);
+            
+            // Add fallback message
+            const fallbackMessage: Message = {
+              id: Date.now().toString(),
+              type: 'ai',
+              content: "I've analyzed your document. **Ask me any questions** about the content.",
+              timestamp: new Date()
+            };
+            
+            setMessages(prev => [...prev, fallbackMessage]);
+          });
+        }
+      } catch (error) {
+        console.error('Error in document processing:', error);
+        setIsLoading(false);
       }
     }
-  }, [documentContent, documentDescription]);
+  }, [documentContent, documentDescription, messages.length]);
 
-  // Gemini API call function
+  // Gemini API call function - now includes document content in every request
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
   const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-pro:generateContent?key=" + GEMINI_API_KEY;
 
@@ -140,85 +160,25 @@ export const AIExplanationPanel = ({
       return "[Gemini API key not set. Please set VITE_GEMINI_API_KEY in your .env file.]";
     }
     try {
-      // Convert previous messages to Gemini format for context
-      // Only include the last few messages to stay within context limits
-      const recentMessages = messages.slice(-5); // Keep only the last 5 messages
-      
-      const previousMessages = recentMessages.map(msg => {
-        // For user messages with images
-        if (msg.type === 'user' && msg.imageData) {
-          try {
-            return {
-              role: 'user',
-              parts: [
-                { text: msg.content },
-                { 
-                  inline_data: {
-                    mime_type: "image/png",
-                    data: msg.imageData.split(',')[1]
-                  }
-                }
-              ]
-            };
-          } catch (e) {
-            // If there's an error processing the image, fall back to text only
-            return {
-              role: 'user',
-              parts: [{ text: msg.content }]
-            };
-          }
-        }
-        
-        // For regular messages
-        return {
-          role: msg.type === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.content }]
-        };
-      });
-      
-      // Add system prompt to guide the AI's responses
+      // Add system prompt with document content
       const systemPrompt = {
         role: 'model',
-        parts: [{ text: `You are an intelligent document tutor. When answering questions about the document:
-
-1. Read the entire document carefully to understand the context.
-2. When asked to provide a description of the document, give a very concise 2-3 sentence summary of what the document is about.
-3. When answering questions about specific parts, make references to other relevant sections of the document to provide a complete understanding.
-4. Keep your answers concise and to the point - not too long that they become overwhelming, but not too short that they lack necessary detail.
-5. Use bullet points or numbered lists when appropriate to organize information.
-6. If the document contains technical content, explain it in clear, accessible language.
-7. When referencing specific parts of the document, mention the section or page number if available.
-8. Be precise and accurate in your responses.
-
-Now, please help the user understand their document.` }]
+        parts: [{ text: `You are an intelligent document tutor. Here is the document content you should remember and use to answer questions:\n\n${processedDocContent || (documentContent ? truncateDocumentContent(documentContent) : 'No document content available.')}\n\nWhen answering questions:\n1. Always refer to the document content above\n2. Be specific and cite relevant parts of the document\n3. Keep answers concise but informative\n4. Use bullet points when appropriate\n5. Format important headings and key points using **bold text**\n6. Use markdown formatting for better readability (e.g., **bold**, *italic*, # headers, - bullet points)` }]
       };
       
-      // Prepare current message
-      let currentMessage;
-      if (imageData) {
-        // Remove the data:image/png;base64, prefix
-        const base64Image = imageData.split(',')[1];
-        
-        currentMessage = {
-          role: 'user',
-          parts: [
-            { text: question },
-            {
-              inline_data: {
-                mime_type: "image/png",
-                data: base64Image
-              }
-            }
-          ]
-        };
-      } else {
-        currentMessage = {
-          role: 'user',
-          parts: [{ text: question }]
-        };
-      }
+      // Convert previous messages for context
+      const previousMessages = messages.slice(-3).map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
+      }));
       
-      // Combine system prompt, previous messages, and current message
+      // Current question
+      const currentMessage = {
+        role: 'user',
+        parts: [{ text: question }]
+      };
+      
+      // Complete request with system prompt and conversation history
       const requestBody = {
         contents: [systemPrompt, ...previousMessages, currentMessage]
       };
@@ -228,33 +188,16 @@ Now, please help the user understand their document.` }]
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)
       });
+      
       const data = await res.json();
-      console.log('Gemini API response:', data);
       const geminiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      
       if (geminiText) return geminiText;
-      // If no expected text, show the full response for debugging
-      return `[No response from Gemini. Full response: ${JSON.stringify(data)}]`;
+      return `[No response from Gemini. Please try again.]`;
     } catch (err) {
-      return `[Gemini API error: ${err}]`;
+      return `[Gemini API error. Please try again.]`;
     }
   }
-
-  // Utility to list available Gemini models
-  async function listGeminiModels() {
-    const url = `https://generativelanguage.googleapis.com/v1/models?key=${GEMINI_API_KEY}`;
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      console.log('Available Gemini models:', data);
-      return data;
-    } catch (err) {
-      console.error('Error listing Gemini models:', err);
-      return null;
-    }
-  }
-
-  // Call this function once to log available models
-  listGeminiModels();
 
   const handleTextExplanation = async (text: string) => {
     const userMessage: Message = {
@@ -319,22 +262,33 @@ Now, please help the user understand their document.` }]
   };
 
   const speakText = (text: string) => {
-    // Remove markdown formatting for speech
-    const cleanText = text.replace(/[*#`]/g, '').replace(/\n+/g, ' ');
+    // Use the AI speech service with selected voice
+    speakWithAI(text, selectedVoice);
     
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel(); // Stop any ongoing speech
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      speechSynthesis.speak(utterance);
-    }
+    // Find the voice name for the notification
+    const voiceName = [
+      { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+      { id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi' },
+      { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella' },
+      { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli' },
+      { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh' },
+      { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold' },
+      { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },
+    ].find(v => v.id === selectedVoice)?.name || 'AI';
+    
+    // Add a message to show which voice is being used
+    setMessages(prev => [...prev, {
+      id: Date.now().toString() + '-voice',
+      type: 'ai',
+      content: `*Speaking with ${voiceName}'s voice...*`,
+      timestamp: new Date()
+    }]);
   };
 
   const toggleVoiceMode = () => {
     setIsVoiceMode(!isVoiceMode);
     if (isVoiceMode) {
-      speechSynthesis.cancel();
+      stopSpeech();
     }
   };
   
@@ -374,9 +328,17 @@ Now, please help the user understand their document.` }]
           </div>
         </div>
         {!isMinimized && (
-          <p className="text-sm text-muted-foreground">
-            {isVoiceMode ? 'Voice explanations enabled' : 'Text explanations mode'}
-          </p>
+          <div>
+            <p className="text-sm text-muted-foreground">
+              {isVoiceMode ? 'Voice explanations enabled' : 'Text explanations mode'}
+            </p>
+            {isVoiceMode && (
+              <VoiceSelector 
+                selectedVoice={selectedVoice}
+                onChange={setSelectedVoice}
+              />
+            )}
+          </div>
         )}
       </CardHeader>
 
@@ -394,7 +356,10 @@ Now, please help the user understand their document.` }]
                         : 'bg-muted text-foreground border'
                       }
                     `}>
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                      <div 
+                        className="whitespace-pre-wrap markdown-content" 
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+                      ></div>
                       {message.imageData && (
                         <div className="mt-2 mb-2">
                           <img 

@@ -1,0 +1,57 @@
+/* Rounded UI styles */
+
+/* Cards */
+.card {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+/* Buttons */
+button, 
+.btn,
+[type="button"],
+[type="submit"],
+[type="reset"] {
+  border-radius: 12px !important;
+}
+
+/* Inputs */
+input,
+textarea,
+select {
+  border-radius: 12px !important;
+}
+
+/* Other UI elements */
+.rounded-custom {
+  border-radius: 16px !important;
+}
+
+/* Document viewer */
+.shadow-learning {
+  border-radius: 16px !important;
+}
+
+/* AI panel */
+.markdown-content {
+  border-radius: 12px !important;
+}
+
+/* Message bubbles */
+.rounded-lg {
+  border-radius: 16px !important;
+}
+
+/* Headers and sections */
+header, 
+section,
+.bg-card,
+.bg-muted,
+.bg-primary-soft {
+  border-radius: 16px !important;
+}
+
+/* Images */
+img {
+  border-radius: 12px !important;
+}

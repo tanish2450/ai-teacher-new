@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import mammoth from "mammoth";
+import { processDocumentWithLLM } from "@/services/documentService";
+// pdfjs is imported dynamically in the handleFile function
 
 interface FileUploadProps {
-  onFileUpload: (file: File, content?: string | ArrayBuffer) => void;
+  onFileUpload: (file: File, content?: string | ArrayBuffer, description?: string) => void;
 }
 
 export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
@@ -53,30 +55,69 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     setIsProcessing(true);
 
     try {
+      let content: string | ArrayBuffer | undefined;
+      let textContent: string | undefined;
+      
       if (file.type === 'application/pdf') {
         // For PDF files, we'll pass the file directly to react-pdf
+        // and handle the description in the AIExplanationPanel
+        toast({
+          title: "Processing PDF...",
+          description: "Loading document for viewing...",
+        });
+        
+        // Just pass the file without trying to extract text here
+        // The AIExplanationPanel will handle getting a description
         onFileUpload(file);
+        return;
       } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
         // For .docx files, extract text using mammoth
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
-        onFileUpload(file, result.value);
+        content = result.value;
+        textContent = result.value as string;
       } else {
         // For text files, read the content
         const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result;
-          if (content) {
-            onFileUpload(file, content);
-          }
-        };
+        const textPromise = new Promise<string>((resolve) => {
+          reader.onload = (e) => {
+            const fileContent = e.target?.result;
+            if (typeof fileContent === 'string') {
+              resolve(fileContent);
+            } else {
+              resolve('');
+            }
+          };
+        });
         reader.readAsText(file);
+        textContent = await textPromise;
+        content = textContent;
       }
-
+      
+      // Process document with LLM to get description
       toast({
-        title: "File uploaded successfully!",
-        description: `${file.name} is ready for AI analysis.`,
+        title: "Analyzing document...",
+        description: "Getting AI insights about your document...",
       });
+      
+      if (textContent) {
+        console.log("Sending document to LLM for analysis, content length:", textContent.length);
+        const description = await processDocumentWithLLM(textContent);
+        console.log("Received document description:", description);
+        onFileUpload(file, content, description);
+        
+        toast({
+          title: "Document analyzed successfully!",
+          description: `${file.name} is ready with AI insights.`,
+        });
+      } else {
+        onFileUpload(file, content);
+        
+        toast({
+          title: "File uploaded successfully!",
+          description: `${file.name} is ready for viewing.`,
+        });
+      }
     } catch (error) {
       toast({
         title: "Upload failed",
